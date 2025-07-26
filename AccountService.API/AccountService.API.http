@@ -1,0 +1,107 @@
+### Account Service API - Test Requests
+
+### 1. Создание текущего счета для Ивана
+POST http://localhost:5000/api/accounts
+Content-Type: application/json
+
+{
+  "ownerId": "11111111-1111-1111-1111-111111111111",
+  "type": "Checking",
+  "currency": "RUB"
+}
+
+### 2. Создание депозита для Ивана
+POST http://localhost:5000/api/accounts
+Content-Type: application/json
+
+{
+  "ownerId": "11111111-1111-1111-1111-111111111111",
+  "type": "Deposit",
+  "currency": "RUB",
+  "interestRate": 3.0
+}
+
+### 3. Получение всех счетов
+GET http://localhost:5000/api/accounts
+
+### 4. Получение счетов Ивана
+GET http://localhost:5000/api/accounts?ownerId=11111111-1111-1111-1111-111111111111
+
+### 5. Получение счета по ID (замените {accountId} на реальный ID)
+GET http://localhost:5000/api/accounts/{accountId}
+
+### 6. Создание транзакции пополнения (замените {accountId} на реальный ID)
+POST http://localhost:5000/api/accounts/transactions
+Content-Type: application/json
+
+{
+  "accountId": "{accountId}",
+  "amount": 1000.00,
+  "currency": "RUB",
+  "type": "Credit",
+  "description": "Пополнение счета наличными"
+}
+
+### 7. Перевод между счетами (замените {fromAccountId} и {toAccountId} на реальные ID)
+POST http://localhost:5000/api/accounts/transfer
+Content-Type: application/json
+
+{
+  "fromAccountId": "{fromAccountId}",
+  "toAccountId": "{toAccountId}",
+  "amount": 200.00,
+  "currency": "RUB",
+  "description": "Перевод с текущего счета на депозит"
+}
+
+### 8. Проверка существования счета
+GET http://localhost:5000/api/accounts/{accountId}/exists
+
+### 9. Обновление счета (замените {accountId} на реальный ID)
+PUT http://localhost:5000/api/accounts/{accountId}
+Content-Type: application/json
+
+{
+  "ownerId": "11111111-1111-1111-1111-111111111111",
+  "type": "Checking",
+  "currency": "RUB",
+  "balance": 1500.00,
+  "interestRate": null,
+  "openingDate": "2024-01-01T00:00:00Z",
+  "closingDate": null
+}
+
+### 10. Удаление счета (замените {accountId} на реальный ID)
+DELETE http://localhost:5000/api/accounts/{accountId}
+
+### Примеры с ошибками валидации:
+
+### 11. Попытка создать счет с несуществующим клиентом
+POST http://localhost:5000/api/accounts
+Content-Type: application/json
+
+{
+  "ownerId": "99999999-9999-9999-9999-999999999999",
+  "type": "Checking",
+  "currency": "RUB"
+}
+
+### 12. Попытка создать счет с неподдерживаемой валютой
+POST http://localhost:5000/api/accounts
+Content-Type: application/json
+
+{
+  "ownerId": "11111111-1111-1111-1111-111111111111",
+  "type": "Checking",
+  "currency": "INVALID"
+}
+
+### 13. Попытка создать депозит без процентной ставки
+POST http://localhost:5000/api/accounts
+Content-Type: application/json
+
+{
+  "ownerId": "11111111-1111-1111-1111-111111111111",
+  "type": "Deposit",
+  "currency": "RUB"
+}
