@@ -1,4 +1,5 @@
 using AccountService.API.Commands;
+using AccountService.API.Common;
 using AccountService.API.Models;
 using AccountService.API.Services;
 using MediatR;
@@ -6,9 +7,9 @@ using MediatR;
 namespace AccountService.API.Handlers;
 
 public class CreateAccountCommandHandler(
-    IAccountStorageService accountStorageService) : IRequestHandler<CreateAccountCommand, Account>
+    IAccountStorageService accountStorageService) : IRequestHandler<CreateAccountCommand, MbResult<Account>>
 {
-    public async Task<Account> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult<Account>> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
     {
         Account account = new()
         {
@@ -20,6 +21,7 @@ public class CreateAccountCommandHandler(
             OpeningDate = DateTime.UtcNow
         };
 
-        return await accountStorageService.CreateAsync(account, cancellationToken);
+        var createdAccount = await accountStorageService.CreateAsync(account, cancellationToken);
+        return MbResult<Account>.Success(createdAccount);
     }
 } 

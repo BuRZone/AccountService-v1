@@ -1,4 +1,5 @@
 using AccountService.API.Commands;
+using AccountService.API.Common;
 using AccountService.API.Models;
 using AccountService.API.Services;
 using MediatR;
@@ -6,23 +7,23 @@ using MediatR;
 namespace AccountService.API.Handlers;
 
 public class TransferCommandHandler(IAccountStorageService accountStorageService)
-    : IRequestHandler<TransferCommand, (Transaction DebitTransaction, Transaction CreditTransaction)>
+    : IRequestHandler<TransferCommand, MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>>
 {
-    public async Task<(Transaction DebitTransaction, Transaction CreditTransaction)> Handle(TransferCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>> Handle(TransferCommand request, CancellationToken cancellationToken)
     {
         var fromAccount = await accountStorageService.GetByIdAsync(request.Request.FromAccountId, cancellationToken);
         var toAccount = await accountStorageService.GetByIdAsync(request.Request.ToAccountId, cancellationToken);
 
         if (fromAccount == null)
-            throw new ArgumentException("Счет отправителя не найден");
+            return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Failure(new MbError("AccountNotFound", "Счет отправителя не найден"));
         if (toAccount == null)
-            throw new ArgumentException("Счет получателя не найден");
+            return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Failure(new MbError("AccountNotFound", "Счет получателя не найден"));
         if (fromAccount.Balance < request.Request.Amount)
-            throw new InvalidOperationException("Недостаточно средств на счете");
+            return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Failure(new MbError("InsufficientFunds", "Недостаточно средств на счете"));
         if (fromAccount.OwnerId != toAccount.OwnerId)
-            throw new InvalidOperationException("Счета должны принадлежать одному клиенту");
+            return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Failure(new MbError("OwnerMismatch", "Счета должны принадлежать одному клиенту"));
         if (fromAccount.Currency != toAccount.Currency)
-            throw new InvalidOperationException("Валюты счетов должны совпадать");
+            return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Failure(new MbError("CurrencyMismatch", "Валюты счетов должны совпадать"));
 
         Transaction debitTransaction = new()
         {
@@ -57,6 +58,6 @@ public class TransferCommandHandler(IAccountStorageService accountStorageService
         await accountStorageService.UpdateAsync(fromAccount, cancellationToken);
         await accountStorageService.UpdateAsync(toAccount, cancellationToken);
 
-        return (debitTransaction, creditTransaction);
+        return MbResult<(Transaction DebitTransaction, Transaction CreditTransaction)>.Success((debitTransaction, creditTransaction));
     }
 } 

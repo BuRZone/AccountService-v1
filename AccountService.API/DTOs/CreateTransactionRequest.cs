@@ -6,47 +6,38 @@ using System.Diagnostics.CodeAnalysis;
 namespace AccountService.API.DTOs;
 
 /// <summary>
-/// Запрос на создание новой транзакции
+/// Представляет запрос на создание новой транзакции.
 /// </summary>
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
-[SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global", Justification = "Used for serialization")]
 public class CreateTransactionRequest
 {
     /// <summary>
-    /// ID счета для транзакции (GUID)
+    /// Уникальный идентификатор счета, участвующего в транзакции. Обязательно.
     /// </summary>
     [Required]
     public Guid AccountId { get; set; }
-
     /// <summary>
-    /// ID счета контрагента (GUID, опционально). Для внешних переводов
+    /// Уникальный идентификатор счета контрагента (опционально).
     /// </summary>
     public Guid? CounterpartyAccountId { get; set; }
-
     /// <summary>
-    /// Сумма транзакции (decimal, больше 0). Формат: 100.50 (точка как разделитель)
+    /// Сумма транзакции. Обязательно.
     /// </summary>
-    [Range(typeof(decimal), "0.01", "999999999999999999.99", ErrorMessage = "Сумма должна быть от 0.01 до 999999999999999999.99")]
+    [Required]
     public decimal Amount { get; set; }
-
     /// <summary>
-    /// Валюта транзакции (ISO 4217 код, 3 символа). Примеры: USD, EUR, RUB
+    /// Валюта транзакции в формате ISO 4217 (например, USD, EUR, RUB). Обязательно.
     /// </summary>
     [Required]
-    [CurrencyValidation]
     public string Currency { get; set; } = string.Empty;
-
     /// <summary>
-    /// Тип транзакции: 0 - Credit (пополнение), 1 - Debit (списание)
+    /// Тип транзакции (Credit или Debit). Обязательно.
     /// </summary>
     [Required]
-    [EnumDataType(typeof(TransactionType))]
     public TransactionType Type { get; set; }
-
     /// <summary>
-    /// Описание транзакции (максимум 500 символов)
+    /// Описание транзакции. Обязательно.
     /// </summary>
     [Required]
-    [StringLength(500, MinimumLength = 1)]
     public string Description { get; set; } = string.Empty;
 }
