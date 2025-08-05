@@ -1,0 +1,42 @@
+{
+  "realm": "AccountServiceRealm",
+  "enabled": true,
+  "requiredActions": [],
+  "clients": [
+    {
+      "clientId": "account-service",
+      "rootUrl": "http://localhost:80",
+      "adminUrl": "http://localhost:80",
+      "baseUrl": "http://localhost:80",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "your_client_secret_here",
+      "redirectUris": [
+        "http://localhost:80/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "publicClient": true,
+      "fullScopeAllowed": true,
+      "bearerOnly": false,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "email": "testuser@example.com",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

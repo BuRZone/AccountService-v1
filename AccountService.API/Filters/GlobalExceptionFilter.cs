@@ -1,3 +1,4 @@
+using AccountService.API.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Diagnostics.CodeAnalysis;
@@ -10,43 +11,27 @@ public class GlobalExceptionFilter(ILogger<GlobalExceptionFilter> logger) : IExc
 {
     public void OnException(ExceptionContext context)
     {
-        // Обработка бизнес-логики ошибок (400 Bad Request)
-        if (context.Exception is InvalidOperationException)
+        if (context.Exception is InvalidOperationException || context.Exception is ArgumentException)
         {
-            logger.LogWarning(context.Exception, "Business logic error");
+            logger.LogWarning(context.Exception, "Business logic error or invalid argument");
             
-            var result = new
-            {
-                type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                title = "Ошибка бизнес-логики.",
-                status = 400,
-                errors = new Dictionary<string, string[]>
-                {
-                    ["Message"] = [context.Exception.Message]
-                },
-                traceId = context.HttpContext.TraceIdentifier
-            };
+            var mbError = new MbError("BusinessLogicError", context.Exception.Message);
+            var result = MbResult<object>.Failure(mbError);
 
             context.Result = new BadRequestObjectResult(result);
             context.ExceptionHandled = true;
             return;
         }
 
-        // Обработка остальных ошибок (500 Internal Server Error)
         logger.LogError(context.Exception, "Unhandled exception occurred");
 
-        var errorResult = new
-        {
-            type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
-            title = "An error occurred while processing your request.",
-            status = 500,
-            detail = "An unexpected error occurred. Please try again later.",
-            traceId = context.HttpContext.TraceIdentifier
-        };
+        var internalServerError = new MbError("InternalServerError", "An unexpected error occurred. Please try again later.");
+        var errorResult = MbResult<object>.Failure(internalServerError);
 
         context.Result = new ObjectResult(errorResult)
         {
             StatusCode = 500
         };
+        context.ExceptionHandled = true;
     }
 } 
