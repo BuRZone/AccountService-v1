@@ -1,21 +1,21 @@
 using AccountService.API.Commands;
+using AccountService.API.Common;
 using AccountService.API.Models;
 using AccountService.API.Services;
 using MediatR;
 
 namespace AccountService.API.Handlers;
 
-public class CreateTransactionCommandHandler(IAccountStorageService accountStorageService) : IRequestHandler<CreateTransactionCommand, Transaction>
+public class CreateTransactionCommandHandler(IAccountStorageService accountStorageService) : IRequestHandler<CreateTransactionCommand, MbResult<Transaction>>
 {
-    public async Task<Transaction> Handle(CreateTransactionCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult<Transaction>> Handle(CreateTransactionCommand request, CancellationToken cancellationToken)
     {
         var account = await accountStorageService.GetByIdAsync(request.Request.AccountId, cancellationToken);
         if (account == null)
-            throw new ArgumentException("Аккаунт не найден");
+            return MbResult<Transaction>.Failure(new MbError("AccountNotFound", "Аккаунт не найден"));
 
-        
         if (request.Request.Type == TransactionType.Debit && account.Balance < request.Request.Amount)
-            throw new InvalidOperationException("Недостаточно средств на счете");
+            return MbResult<Transaction>.Failure(new MbError("InsufficientFunds", "Недостаточно средств на счете"));
 
         Transaction transaction = new()
         {
@@ -37,6 +37,6 @@ public class CreateTransactionCommandHandler(IAccountStorageService accountStora
         account.Transactions.Add(transaction);
         await accountStorageService.UpdateAsync(account, cancellationToken);
 
-        return transaction;
+        return MbResult<Transaction>.Success(transaction);
     }
 } 

@@ -4,7 +4,7 @@
 
 ## Описание
 
-Сервис предоставляет REST API для управления банковскими счетами и транзакциями. Реализован с использованием паттернов CQRS, MediatR и FluentValidation.
+Сервис предоставляет REST API для управления банковскими счетами и транзакциями. Реализован с использованием паттернов CQRS, MediatR и FluentValidation. Поддерживает JWT аутентификацию через Keycloak и контейнеризацию с Docker.
 
 ## Технологии
 
@@ -13,6 +13,34 @@
 - MediatR (CQRS)
 - FluentValidation
 - Swagger/OpenAPI
+- JWT Authentication (Keycloak)
+- Docker & Docker Compose
+- CORS
+
+## Архитектурные особенности
+
+### MbResult Pattern
+Все API методы возвращают унифицированный тип `MbResult<T>`, который инкапсулирует либо успешный результат, либо ошибку:
+
+```csharp
+public class MbResult<T>
+{
+    public T? Result { get; private set; }
+    public MbError? Error { get; private set; }
+    public bool IsSuccess => Error == null;
+    public bool IsFailure => !IsSuccess;
+}
+```
+
+### Валидация
+- FluentValidation настроен для возврата только первой ошибки на поле
+- Все ошибки валидации возвращаются через `MbResult.Failure()`
+- Отключена стандартная модель валидации ASP.NET Core
+
+### Аутентификация
+- JWT Bearer токены через Keycloak
+- Все API методы защищены атрибутом `[Authorize]`
+- Автоматическая подстановка "Bearer" в Swagger UI
 
 ## Функциональность
 
@@ -39,6 +67,7 @@
 
 ## Запуск проекта
 
+### Локальный запуск
 1. Убедитесь, что у вас установлен .NET 9
 2. Клонируйте репозиторий
 3. Перейдите в папку `AccountService.API`
@@ -48,9 +77,40 @@
    ```
 5. Откройте браузер и перейдите по адресу: `https://localhost:7001` или `http://localhost:5001`
 
+### Запуск с Docker Compose (рекомендуется)
+1. Убедитесь, что установлен Docker и Docker Compose
+2. В корневой папке проекта выполните:
+   ```bash
+   docker-compose up --build -d
+   ```
+3. API будет доступен по адресу: `http://localhost`
+4. Keycloak будет доступен по адресу: `http://localhost:8080`
+
+## Аутентификация
+
+### Получение токена
+```bash
+curl -X POST "http://localhost:8080/realms/AccountServiceRealm/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=account-service&grant_type=password&username=testuser&password=password"
+```
+
+### Тестовые учетные данные
+- **Username**: testuser
+- **Password**: password
+- **Realm**: AccountServiceRealm
+- **Client**: account-service
+
 ## Swagger документация
 
-После запуска приложения Swagger UI будет доступен по адресу: `https://localhost:7001` или `http://localhost:5001`
+После запуска приложения Swagger UI будет доступен по адресу:
+- Локально: `https://localhost:7001/swagger` или `http://localhost:5001/swagger`
+- Docker: `http://localhost/swagger`
+
+Для тестирования API в Swagger:
+1. Получите JWT токен через Keycloak
+2. В Swagger UI нажмите кнопку "Authorize"
+3. Вставьте токен в поле (система автоматически добавит "Bearer ")
 
 ## API Endpoints
 
@@ -68,11 +128,20 @@
 - `POST /api/accounts/transactions` - Создать транзакцию
 - `POST /api/accounts/transfer` - Выполнить перевод между счетами
 
+## HTTP Status Codes
+
+- **200 OK** - Успешная операция
+- **400 Bad Request** - Ошибки валидации или бизнес-логики
+- **401 Unauthorized** - Отсутствует или недействительный JWT токен
+- **404 Not Found** - Ресурс не найден
+- **500 Internal Server Error** - Внутренняя ошибка сервера
+
 ## Примеры запросов
 
 ### Создание текущего счета
 ```json
 POST /api/accounts
+Authorization: Bearer <your-jwt-token>
 {
   "ownerId": "11111111-1111-1111-1111-111111111111",
   "type": "Checking",
@@ -83,6 +152,7 @@ POST /api/accounts
 ### Создание депозита
 ```json
 POST /api/accounts
+Authorization: Bearer <your-jwt-token>
 {
   "ownerId": "11111111-1111-1111-1111-111111111111",
   "type": "Deposit",
@@ -94,6 +164,7 @@ POST /api/accounts
 ### Создание транзакции
 ```json
 POST /api/accounts/transactions
+Authorization: Bearer <your-jwt-token>
 {
   "accountId": "account-guid-here",
   "amount": 1000.00,
@@ -106,6 +177,7 @@ POST /api/accounts/transactions
 ### Перевод между счетами
 ```json
 POST /api/accounts/transfer
+Authorization: Bearer <your-jwt-token>
 {
   "fromAccountId": "from-account-guid",
   "toAccountId": "to-account-guid",
@@ -118,6 +190,7 @@ POST /api/accounts/transfer
 ### Частичное обновление счета
 ```json
 PATCH /api/accounts/{id}
+Authorization: Bearer <your-jwt-token>
 {
   "balance": 5000.00,
   "interestRate": 4.5
@@ -129,8 +202,9 @@ PATCH /api/accounts/{id}
 ```
 AccountService.API/
 ├── Attributes/        # Кастомные атрибуты валидации
-├── Behaviors/         # Поведения MediatR pipeline
+├── Behaviors/         # Поведения MediatR pipeline (включая ValidationBehavior)
 ├── Commands/          # Команды MediatR
+├── Common/           # Общие типы (MbResult, MbError)
 ├── Controllers/       # API контроллеры
 ├── DTOs/             # Data Transfer Objects
 ├── Filters/          # Фильтры для обработки ошибок
@@ -188,17 +262,39 @@ AccountService.API/
 
 ### Типы ошибок
 - **400 Bad Request** - Ошибки валидации и бизнес-логики
+- **401 Unauthorized** - Ошибки аутентификации
+- **404 Not Found** - Ресурс не найден
 - **500 Internal Server Error** - Необработанные исключения
 
 ### Формат ответа об ошибке
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "Ошибка валидации данных.",
-  "status": 400,
-  "errors": {
-    "fieldName": ["Описание ошибки"]
+  "result": null,
+  "error": {
+    "code": "ValidationError",
+    "message": "One or more validation errors occurred.",
+    "details": {
+      "fieldName": ["Описание ошибки"]
+    }
   },
-  "traceId": "..."
+  "isSuccess": false,
+  "isFailure": true
 }
-``` 
+```
+
+## Docker конфигурация
+
+### Dockerfile
+- Многоэтапная сборка для оптимизации размера образа
+- Публикация на порту 80 внутри контейнера
+- Базовый образ .NET 9.0
+
+### Docker Compose
+- **account-service**: API на порту 80
+- **keycloak**: Сервер аутентификации на порту 8080
+- Автоматический импорт realm конфигурации
+- Настроенная сеть между сервисами
+
+## CORS
+
+Настроен для разрешения всех источников (`AllowAll`) для разработки. В продакшене рекомендуется настроить конкретные домены. 

@@ -1,4 +1,5 @@
 using AccountService.API.Commands;
+using AccountService.API.Common;
 using AccountService.API.Models;
 using AccountService.API.Services;
 using MediatR;
@@ -6,13 +7,13 @@ using MediatR;
 namespace AccountService.API.Handlers;
 
 public class UpdateAccountCommandHandler(IAccountStorageService accountStorageService)
-    : IRequestHandler<UpdateAccountCommand, Account>
+    : IRequestHandler<UpdateAccountCommand, MbResult<Account>>
 {
-    public async Task<Account> Handle(UpdateAccountCommand request, CancellationToken cancellationToken)
+    public async Task<MbResult<Account>> Handle(UpdateAccountCommand request, CancellationToken cancellationToken)
     {
         var existingAccount = await accountStorageService.GetByIdAsync(request.Id, cancellationToken);
         if (existingAccount == null)
-            throw new ArgumentException("Account not found");
+            return MbResult<Account>.Failure(new MbError("AccountNotFound", "Account not found."));
 
         existingAccount.OwnerId = request.Request.OwnerId;
         existingAccount.Type = request.Request.Type;
@@ -22,6 +23,7 @@ public class UpdateAccountCommandHandler(IAccountStorageService accountStorageSe
         existingAccount.OpeningDate = request.Request.OpeningDate;
         existingAccount.ClosingDate = request.Request.ClosingDate;
 
-        return await accountStorageService.UpdateAsync(existingAccount, cancellationToken);
+        var updatedAccount = await accountStorageService.UpdateAsync(existingAccount, cancellationToken);
+        return MbResult<Account>.Success(updatedAccount);
     }
 } 
